@@ -24,7 +24,6 @@
 # CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 /data/hanoi-latest.osrm"]
 
 
-# Dockerfile
 # ======================
 # Stage 1: Build OSRM
 # ======================
@@ -54,7 +53,7 @@ RUN apt-get update && apt-get install -y \
 # Clone OSRM source
 RUN git clone https://github.com/Project-OSRM/osrm-backend.git /osrm-backend
 WORKDIR /osrm-backend
-RUN git checkout v5.27.0  # bản ổn định
+RUN git checkout v5.27.0
 
 # Build OSRM
 RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build .
@@ -77,14 +76,15 @@ RUN apt-get update && apt-get install -y \
     libbz2-1.0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy OSRM binaries từ builder
+# Copy OSRM binaries + profiles
 COPY --from=builder /osrm-backend/build/osrm-* /usr/local/bin/
+COPY --from=builder /osrm-backend/profiles /osrm-profiles
 
-# Copy dữ liệu bản đồ (bạn cần thêm file hanoi-latest.osm.pbf vào context build)
+# Copy dữ liệu bản đồ (bạn cần có file này ở context build)
 COPY hanoi-latest.osm.pbf /data/hanoi.osm.pbf
 
-# Chuẩn bị dữ liệu OSRM
-RUN osrm-extract -p /osrm-backend/profiles/car.lua /data/hanoi.osm.pbf && \
+# Chuẩn bị dữ liệu OSRM (car profile)
+RUN osrm-extract -p /osrm-profiles/car.lua /data/hanoi.osm.pbf && \
     osrm-partition /data/hanoi.osrm && \
     osrm-customize /data/hanoi.osrm
 
@@ -97,3 +97,4 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 EXPOSE 80
 
 CMD ["/usr/bin/supervisord", "-n"]
+
