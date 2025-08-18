@@ -24,76 +24,28 @@
 # CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 /data/hanoi-latest.osrm"]
 
 
-# ======================
-# Stage 1: Build OSRM
-# ======================
-FROM ubuntu:22.04 as builder
-
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    cmake \
-    git \
-    g++ \
-    libboost-all-dev \
-    lua5.2 \
-    liblua5.2-dev \
-    libtbb-dev \
-    libstxxl-dev \
-    libstxxl1v5 \
-    libxml2-dev \
-    libzip-dev \
-    libbz2-dev \
-    zlib1g-dev \
-    pkg-config \
-    wget \
-    curl \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Clone OSRM source
-RUN git clone https://github.com/Project-OSRM/osrm-backend.git /osrm-backend
-WORKDIR /osrm-backend
-RUN git checkout v5.27.0
-
-# Build OSRM
-RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build .
-
-# ======================
-# Stage 2: Runtime
-# ======================
 FROM ubuntu:22.04
 
-RUN apt-get update && apt-get install -y \
-    nginx supervisor \
-    libtbb12 \
-    liblua5.2-0 \
-    libboost-system-dev \
-    libboost-filesystem-dev \
-    libboost-thread-dev \
-    libxml2 \
-    libzip4 \
-    zlib1g \
-    libbz2-1.0 \
-    && rm -rf /var/lib/apt/lists/*
+# Cài OSRM backend + Nginx + Supervisor
+RUN apt-get update && \
+    apt-get install -y osrm-backend nginx supervisor && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy OSRM binaries + profiles
-COPY --from=builder /osrm-backend/build/osrm-* /usr/local/bin/
-COPY --from=builder /osrm-backend/profiles /osrm-profiles
-
-# Tạo thư mục dữ liệu OSRM
-RUN mkdir -p /data
-WORKDIR /data
-
-# Copy config
-COPY default.conf /etc/nginx/sites-available/default
+# Copy file config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY nginx/default.conf /etc/nginx/sites-available/default
 
-# Copy entrypoint script (chuẩn bị dữ liệu khi start container)
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# Copy dữ liệu OSM
+COPY data/hanoi-latest.osm.pbf /data/hanoi.osm.pbf
 
+# Chuẩn bị dữ liệu OSRM (chỉ chạy khi build)
+RUN osrm-extract -p /usr/share/osrm/profiles/car.lua /data/hanoi.osm.pbf && \
+    osrm-partition /data/hanoi.osrm && \
+    osrm-customize /data/hanoi.osrm
+
+# Expose cổng
 EXPOSE 80
 
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-
+# Start Supervisor
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 
