@@ -23,6 +23,8 @@
 # # CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 --cors /data/hanoi-latest.osrm"]
 # CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 /data/hanoi-latest.osrm"]
 
+
+
 # Base: OSRM chính thức
 FROM ghcr.io/project-osrm/osrm-backend:v5.27.1
 
@@ -39,10 +41,10 @@ RUN osrm-extract -p /opt/car.lua /data/hanoi-latest.osm.pbf && \
     osrm-partition /data/hanoi-latest.osrm && \
     osrm-customize /data/hanoi-latest.osrm
 
-# Xoá config Nginx mặc định để tránh "Welcome to nginx!"
+# Xoá config Nginx mặc định
 RUN rm -f /etc/nginx/conf.d/*.conf
 
-# Copy Nginx + Supervisor config của bạn
+# Copy Nginx + Supervisor config
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
