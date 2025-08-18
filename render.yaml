@@ -10,6 +10,7 @@
 #       - port: 5000
 #         protocol: http
 
+# render.yaml
 services:
   - type: web
     name: osrm-backend
@@ -18,6 +19,3 @@ services:
     dockerfilePath: ./Dockerfile
     autoDeploy: false
     region: singapore
-    ports:
-      - port: 10000   # Render public port, OSRM sẽ nghe $PORT bên trong container
-        protocol: http

@@ -24,42 +24,76 @@
 # CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 /data/hanoi-latest.osrm"]
 
 
+# Dockerfile
+# ======================
+# Stage 1: Build OSRM
+# ======================
+FROM ubuntu:22.04 as builder
 
-# ================================
-# Stage 1: Build OSRM data
-# ================================
-FROM osrm/osrm-backend:latest AS osrm-builder
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    g++ \
+    libboost-all-dev \
+    lua5.2 \
+    liblua5.2-dev \
+    libtbb-dev \
+    libstxxl-dev \
+    libstxxl1v5 \
+    libxml2-dev \
+    libzip-dev \
+    libbz2-dev \
+    zlib1g-dev \
+    pkg-config \
+    wget \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /data
-# Copy file bản đồ OSM vào container
-COPY hanoi-latest.osm.pbf /data/
+# Clone OSRM source
+RUN git clone https://github.com/Project-OSRM/osrm-backend.git /osrm-backend
+WORKDIR /osrm-backend
+RUN git checkout v5.27.0  # bản ổn định
 
-# Chuẩn bị dữ liệu cho OSRM
-RUN osrm-extract -p /opt/car.lua /data/hanoi-latest.osm.pbf && \
-    osrm-partition /data/hanoi-latest.osrm && \
-    osrm-customize /data/hanoi-latest.osrm
+# Build OSRM
+RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build .
 
-# ================================
-# Stage 2: Final container with OSRM + Nginx
-# ================================
+# ======================
+# Stage 2: Runtime
+# ======================
 FROM ubuntu:22.04
 
-# Cài OSRM + Nginx + supervisor
-RUN apt-get update && \
-    apt-get install -y osrm-backend nginx supervisor && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    nginx supervisor \
+    libtbb12 \
+    liblua5.2-0 \
+    libboost-system-dev \
+    libboost-filesystem-dev \
+    libboost-thread-dev \
+    libxml2 \
+    libzip4 \
+    zlib1g \
+    libbz2-1.0 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy dữ liệu OSRM từ stage 1
-COPY --from=osrm-builder /data /data
+# Copy OSRM binaries từ builder
+COPY --from=builder /osrm-backend/build/osrm-* /usr/local/bin/
 
-# Copy file cấu hình Nginx
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy dữ liệu bản đồ (bạn cần thêm file hanoi-latest.osm.pbf vào context build)
+COPY hanoi-latest.osm.pbf /data/hanoi.osm.pbf
 
-# Copy file cấu hình Supervisor
+# Chuẩn bị dữ liệu OSRM
+RUN osrm-extract -p /osrm-backend/profiles/car.lua /data/hanoi.osm.pbf && \
+    osrm-partition /data/hanoi.osrm && \
+    osrm-customize /data/hanoi.osrm
+
+# ======================
+# Config Nginx + CORS
+# ======================
+COPY default.conf /etc/nginx/sites-available/default
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Expose cổng HTTP
 EXPOSE 80
 
-# Start cả OSRM + Nginx thông qua Supervisor
 CMD ["/usr/bin/supervisord", "-n"]
