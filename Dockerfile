@@ -38,6 +38,6 @@ RUN osrm-extract -p /opt/car.lua /data/hanoi-latest.osm.pbf \
 # 4. Chạy OSRM server
 # ============================
 EXPOSE 5000
-# CMD ["osrm-routed", "--algorithm", "mld", "/data/hanoi-latest.osrm"]
-CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 --cors /data/hanoi-latest.osrm"]
+# CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 --cors /data/hanoi-latest.osrm"]
+CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 /data/hanoi-latest.osrm"]
 
