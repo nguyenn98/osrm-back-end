@@ -24,35 +24,28 @@
 # CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 /data/hanoi-latest.osrm"]
 
 
-# Sử dụng image chính thức của OSRM (có sẵn boost và osrm-backend)
-FROM osrm/osrm-backend:latest AS builder
+FROM osrm/osrm-backend:v5.27.0
 
-# Copy dữ liệu bản đồ
-COPY data/hanoi-latest.osm.pbf /data/hanoi.osm.pbf
-
-# Chuẩn bị dữ liệu OSRM với profile ô tô
-RUN osrm-extract -p /opt/car.lua /data/hanoi.osm.pbf && \
-    osrm-partition /data/hanoi.osrm && \
-    osrm-customize /data/hanoi.osrm
-
-# Stage 2: tạo container chạy OSRM + Nginx + Supervisor
-FROM debian:bullseye-slim
-
-# Cài nginx, supervisor, osrm-backend
+# Cài thêm nginx + supervisor
 RUN apt-get update && \
-    apt-get install -y nginx supervisor osrm-backend && \
+    apt-get install -y nginx supervisor && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy dữ liệu OSRM từ stage builder
-COPY --from=builder /data /data
-
-# Copy cấu hình nginx và supervisor
-COPY nginx/default.conf /etc/nginx/sites-enabled/default
+# Copy file cấu hình
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY nginx/default.conf /etc/nginx/sites-available/default
+
+# Copy data OSM vào container
+COPY data/hanoi-latest.osm.pbf /data/hanoi-latest.osm.pbf
+
+# Chuẩn bị dữ liệu (chỉ chạy khi build)
+RUN osrm-extract -p /opt/car.lua /data/hanoi-latest.osm.pbf && \
+    osrm-partition /data/hanoi-latest.osrm && \
+    osrm-customize /data/hanoi-latest.osrm
 
 # Expose cổng
 EXPOSE 80
 
-# Chạy supervisor (quản lý OSRM + Nginx)
+# Chạy tất cả qua Supervisor
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 
