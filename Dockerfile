@@ -80,21 +80,20 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /osrm-backend/build/osrm-* /usr/local/bin/
 COPY --from=builder /osrm-backend/profiles /osrm-profiles
 
-# Copy dữ liệu bản đồ (bạn cần có file này ở context build)
-COPY hanoi-latest.osm.pbf /data/hanoi.osm.pbf
+# Tạo thư mục dữ liệu OSRM
+RUN mkdir -p /data
+WORKDIR /data
 
-# Chuẩn bị dữ liệu OSRM (car profile)
-RUN osrm-extract -p /osrm-profiles/car.lua /data/hanoi.osm.pbf && \
-    osrm-partition /data/hanoi.osrm && \
-    osrm-customize /data/hanoi.osrm
-
-# ======================
-# Config Nginx + CORS
-# ======================
+# Copy config
 COPY default.conf /etc/nginx/sites-available/default
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+# Copy entrypoint script (chuẩn bị dữ liệu khi start container)
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 EXPOSE 80
 
-CMD ["/usr/bin/supervisord", "-n"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+
 
