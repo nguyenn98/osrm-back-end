@@ -25,21 +25,28 @@
 
 
 
+# ===========================
+# Dockerfile: OSRM + Nginx + Supervisor
+# ===========================
+
 # Base: OSRM chính thức
 FROM ghcr.io/project-osrm/osrm-backend:v5.27.1
 
+# Set working directory
+WORKDIR /data
+
 # Cài thêm nginx + supervisor
 RUN apt-get update && \
-    apt-get install -y nginx supervisor && \
+    apt-get install -y --no-install-recommends nginx supervisor && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy dữ liệu bản đồ vào container
-COPY data/hanoi-latest.osm.pbf /data/hanoi-latest.osm.pbf
+COPY data/hanoi-latest.osm.pbf ./hanoi-latest.osm.pbf
 
 # Chuẩn bị dữ liệu OSRM (MLD)
-RUN osrm-extract -p /opt/car.lua /data/hanoi-latest.osm.pbf && \
-    osrm-partition /data/hanoi-latest.osrm && \
-    osrm-customize /data/hanoi-latest.osrm
+RUN osrm-extract -p /opt/car.lua hanoi-latest.osm.pbf && \
+    osrm-partition hanoi-latest.osrm && \
+    osrm-customize hanoi-latest.osrm
 
 # Xoá config Nginx mặc định
 RUN rm -f /etc/nginx/conf.d/*.conf
@@ -47,6 +54,9 @@ RUN rm -f /etc/nginx/conf.d/*.conf
 # Copy Nginx + Supervisor config
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Đảm bảo quyền đọc/ghi cho OSRM
+RUN chown -R www-data:www-data /data
 
 # Expose port web
 EXPOSE 80
