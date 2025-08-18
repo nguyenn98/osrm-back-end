@@ -1,20 +1,27 @@
+ # ============================
+# # 1. Base image
+# # ============================
 # FROM osrm/osrm-backend:latest
 
-# # Copy file bản đồ vào đúng path trong container
-# # COPY hanoi-latest.osm.pbf /data/hanoi.osm.pbf
-# COPY osrm-backend/hanoi-latest.osm.pbf /data/hanoi.osm.pbf
+# # ============================
+# # 2. Copy dữ liệu bản đồ vào container
+# # ============================
+# WORKDIR /data
+# COPY hanoi-latest.osm.pbf /data
 
-# # Chuẩn bị dữ liệu cho thuật toán MLD
-# RUN osrm-extract -p /opt/car.lua /data/hanoi.osm.pbf && \
-#     osrm-partition /data/hanoi.osrm && \
-#     osrm-customize /data/hanoi.osrm
+# # ============================
+# # 3. Chuẩn bị dữ liệu cho OSRM
+# # ============================
+# RUN osrm-extract -p /opt/car.lua /data/hanoi-latest.osm.pbf \
+#  && osrm-partition /data/hanoi-latest.osrm \
+#  && osrm-customize /data/hanoi-latest.osrm
 
-# # Mở cổng 5000
+# # ============================
+# # 4. Chạy OSRM server
+# # ============================
 # EXPOSE 5000
-
-# # Chạy OSRM server
-# CMD ["osrm-routed", "--algorithm", "mld", "/data/hanoi.osrm"]
-
+# # CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 --cors /data/hanoi-latest.osrm"]
+# CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 /data/hanoi-latest.osrm"]
 
 # ============================
 # 1. Base image
@@ -28,7 +35,7 @@ WORKDIR /data
 COPY hanoi-latest.osm.pbf /data
 
 # ============================
-# 3. Chuẩn bị dữ liệu cho OSRM
+# 3. Chuẩn bị dữ liệu cho OSRM (MLD algorithm)
 # ============================
 RUN osrm-extract -p /opt/car.lua /data/hanoi-latest.osm.pbf \
  && osrm-partition /data/hanoi-latest.osrm \
@@ -38,6 +45,4 @@ RUN osrm-extract -p /opt/car.lua /data/hanoi-latest.osm.pbf \
 # 4. Chạy OSRM server
 # ============================
 EXPOSE 5000
-# CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 --cors /data/hanoi-latest.osrm"]
-CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 /data/hanoi-latest.osrm"]
-
+CMD ["sh", "-c", "osrm-routed --algorithm mld -p ${PORT:-5000} -i 0.0.0.0 --cors /data/hanoi-latest.osrm"]
