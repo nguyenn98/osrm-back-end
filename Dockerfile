@@ -23,8 +23,7 @@
 # # CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 --cors /data/hanoi-latest.osrm"]
 # CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 /data/hanoi-latest.osrm"]
 
-# Dockerfile
-# Base: OSRM từ GHCR (tag tồn tại)
+# Base: OSRM chính thức
 FROM ghcr.io/project-osrm/osrm-backend:v5.27.1
 
 # Cài thêm nginx + supervisor
@@ -40,13 +39,15 @@ RUN osrm-extract -p /opt/car.lua /data/hanoi-latest.osm.pbf && \
     osrm-partition /data/hanoi-latest.osrm && \
     osrm-customize /data/hanoi-latest.osrm
 
-# Nginx + Supervisor config
+# Xoá config Nginx mặc định để tránh "Welcome to nginx!"
+RUN rm -f /etc/nginx/conf.d/*.conf
+
+# Copy Nginx + Supervisor config của bạn
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Expose HTTP
+# Expose port web
 EXPOSE 80
 
 # Chạy cả OSRM + Nginx qua supervisor
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
-
