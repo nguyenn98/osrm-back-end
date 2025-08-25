@@ -24,13 +24,13 @@
 # CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 /data/hanoi-latest.osrm"]
 
 
-
+# Dockerfile
 # Base: OSRM chính thức
 FROM ghcr.io/project-osrm/osrm-backend:v5.27.1
 
 # Cài thêm nginx + supervisor
 RUN apt-get update && \
-    apt-get install -y nginx supervisor && \
+    apt-get install -y --no-install-recommends nginx supervisor && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy dữ liệu bản đồ vào container
@@ -41,8 +41,8 @@ RUN osrm-extract -p /opt/car.lua /data/hanoi-latest.osm.pbf && \
     osrm-partition /data/hanoi-latest.osrm && \
     osrm-customize /data/hanoi-latest.osrm
 
-# Xoá config Nginx mặc định
-RUN rm -f /etc/nginx/conf.d/*.conf
+# Xoá toàn bộ cấu hình mặc định của Nginx (rất quan trọng)
+RUN rm -f /etc/nginx/conf.d/*.conf && rm -f /etc/nginx/sites-enabled/*
 
 # Copy Nginx + Supervisor config
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
