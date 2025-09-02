@@ -1,30 +1,34 @@
- # ============================
-# # 1. Base image
-# # ============================
-# FROM osrm/osrm-backend:latest
+# # Dockerfile
+# # Base: OSRM chính thức
+# FROM ghcr.io/project-osrm/osrm-backend:v5.27.1
 
-# # ============================
-# # 2. Copy dữ liệu bản đồ vào container
-# # ============================
-# WORKDIR /data
-# COPY hanoi-latest.osm.pbf /data
+# # Cài thêm nginx + supervisor
+# RUN apt-get update && \
+#     apt-get install -y --no-install-recommends nginx supervisor && \
+#     rm -rf /var/lib/apt/lists/*
 
-# # ============================
-# # 3. Chuẩn bị dữ liệu cho OSRM
-# # ============================
-# RUN osrm-extract -p /opt/car.lua /data/hanoi-latest.osm.pbf \
-#  && osrm-partition /data/hanoi-latest.osrm \
-#  && osrm-customize /data/hanoi-latest.osrm
+# # Copy dữ liệu bản đồ vào container
+# COPY data/hanoi-latest.osm.pbf /data/hanoi-latest.osm.pbf
 
-# # ============================
-# # 4. Chạy OSRM server
-# # ============================
-# EXPOSE 5000
-# # CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 --cors /data/hanoi-latest.osrm"]
-# CMD ["sh","-c","osrm-routed --algorithm mld -p ${PORT} -i 0.0.0.0 /data/hanoi-latest.osrm"]
+# # Chuẩn bị dữ liệu OSRM (MLD)
+# RUN osrm-extract -p /opt/car.lua /data/hanoi-latest.osm.pbf && \
+#     osrm-partition /data/hanoi-latest.osrm && \
+#     osrm-customize /data/hanoi-latest.osrm
 
+# # Xoá toàn bộ cấu hình mặc định của Nginx (rất quan trọng)
+# RUN rm -f /etc/nginx/conf.d/*.conf && rm -f /etc/nginx/sites-enabled/*
 
-# Dockerfile
+# # Copy Nginx + Supervisor config
+# COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+# COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# # Expose port web (Nginx)
+# EXPOSE 80
+
+# # Chạy cả OSRM + Nginx qua supervisor
+# CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+
+# # Dockerfile
 # Base: OSRM chính thức
 FROM ghcr.io/project-osrm/osrm-backend:v5.27.1
 
@@ -41,7 +45,7 @@ RUN osrm-extract -p /opt/car.lua /data/hanoi-latest.osm.pbf && \
     osrm-partition /data/hanoi-latest.osrm && \
     osrm-customize /data/hanoi-latest.osrm
 
-# Xoá toàn bộ cấu hình mặc định của Nginx (rất quan trọng)
+# Xoá toàn bộ cấu hình mặc định của Nginx
 RUN rm -f /etc/nginx/conf.d/*.conf && rm -f /etc/nginx/sites-enabled/*
 
 # Copy Nginx + Supervisor config
@@ -51,5 +55,5 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # Expose port web (Nginx)
 EXPOSE 80
 
-# Chạy cả OSRM + Nginx qua supervisor
+# Start cả OSRM + Nginx qua supervisor
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
